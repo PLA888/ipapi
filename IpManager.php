@@ -496,36 +496,44 @@ class IpManager {
             $byte = ord($chr);
         }
         
-        // 添加详细的调试信息
+        // 记录原始数据用于调试
         error_log("原始字符串(hex): " . bin2hex($str));
         
         try {
-            // 1. 首先尝试直接转换
-            $converted = @iconv('GBK', 'UTF-8//IGNORE', $str);
-            if ($converted !== false) {
-                $result = trim($converted);
-                if (!empty($result) && mb_check_encoding($result, 'UTF-8')) {
+            // 使用 CP936 编码（GBK的别名）进行转换
+            $result = iconv('CP936', 'UTF-8//IGNORE', $str);
+            if ($result !== false) {
+                $result = trim($result);
+                if (!empty($result)) {
+                    error_log("成功转换: " . $result);
                     return $result;
                 }
             }
             
-            // 2. 如果直接转换失败，尝试检测编码并转换
-            $encoding = mb_detect_encoding($str, ['GBK', 'GB2312', 'UTF-8', 'BIG5']);
-            if ($encoding) {
-                $converted = @mb_convert_encoding($str, 'UTF-8', $encoding);
-                if (!empty($converted)) {
-                    return trim($converted);
+            // 如果第一次转换失败，尝试使用 GB18030
+            $result = iconv('GB18030', 'UTF-8//IGNORE', $str);
+            if ($result !== false) {
+                $result = trim($result);
+                if (!empty($result)) {
+                    error_log("GB18030转换成功: " . $result);
+                    return $result;
                 }
             }
             
-            // 3. 最后尝试使用 TRANSLIT 选项
-            $converted = @iconv('GBK', 'UTF-8//TRANSLIT', $str);
-            if ($converted !== false) {
-                return trim($converted);
+            // 如果仍然失败，尝试使用 mb_convert_encoding
+            $encodings = array('GBK', 'GB2312', 'BIG5', 'UTF-8');
+            foreach ($encodings as $encoding) {
+                $result = @mb_convert_encoding($str, 'UTF-8', $encoding);
+                if ($result !== false && !empty(trim($result))) {
+                    error_log("使用 {$encoding} 转换成功: " . $result);
+                    return trim($result);
+                }
             }
             
-            // 4. 如果所有转换都失败，返回十六进制表示
-            return '未知地区(' . bin2hex($str) . ')';
+            // 如果所有转换都失败，返回未知地区
+            error_log("所有转换方法都失败");
+            return '未知地区';
+            
         } catch (Exception $e) {
             error_log("字符编码转换错误: " . $e->getMessage());
             return '未知地区';

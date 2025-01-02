@@ -22,6 +22,11 @@ mysqli_set_charset($conn, 'utf8mb4');
 ini_set('default_charset', 'UTF-8');
 mb_internal_encoding('UTF-8');
 
+// 确保设置正确的字符集
+mysqli_query($conn, "SET NAMES utf8mb4");
+mysqli_query($conn, "SET CHARACTER SET utf8mb4");
+mysqli_query($conn, "SET character_set_connection=utf8mb4");
+
 // 获取用户真实IP函数
 function getuserip() {
     $real_ip = $_SERVER['REMOTE_ADDR'];
