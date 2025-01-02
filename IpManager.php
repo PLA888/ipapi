@@ -29,31 +29,45 @@ class IpManager {
             $ip = mysqli_real_escape_string($this->conn, $ip);
             $now = date('Y-m-d H:i:s');
             
-            // 获取位置信息并记录日志
+            // 获取位置信息
             $location = $this->getIpLocation($ip);
-            error_log("IP: $ip, Location: $location");
             
-            // 获取设备信息并记录日志
+            // 获取设备信息
             $deviceInfo = $this->getDeviceInfo($_SERVER['HTTP_USER_AGENT'] ?? '');
-            error_log("IP: $ip, Device: $deviceInfo, UserAgent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'none'));
             
+            // 记录调试信息
+            error_log("Recording IP access - IP: $ip, Location: $location, Device: $deviceInfo");
+            
+            // 确保数据安全
             $location = mysqli_real_escape_string($this->conn, $location);
             $deviceInfo = mysqli_real_escape_string($this->conn, $deviceInfo);
             
+            // 使用预处理语句来防止SQL注入
             $sql = "INSERT INTO ip_access (ip, first_access, last_access, access_count, location, device_info) 
-                    VALUES ('$ip', '$now', '$now', 1, '$location', '$deviceInfo')
+                    VALUES (?, ?, ?, 1, ?, ?)
                     ON DUPLICATE KEY UPDATE 
-                        last_access = '$now',
+                        last_access = VALUES(last_access),
                         access_count = access_count + 1,
-                        location = '$location',
-                        device_info = '$deviceInfo'";
-            
-            $result = mysqli_query($this->conn, $sql);
-            if (!$result) {
-                error_log("IP记录失败: " . mysqli_error($this->conn));
+                        location = VALUES(location),
+                        device_info = VALUES(device_info)";
+                    
+            $stmt = mysqli_prepare($this->conn, $sql);
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 'sssss', $ip, $now, $now, $location, $deviceInfo);
+                $result = mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+                
+                if ($result) {
+                    error_log("Successfully recorded IP: $ip");
+                    return true;
+                } else {
+                    error_log("Failed to record IP: " . mysqli_error($this->conn));
+                    return false;
+                }
+            } else {
+                error_log("Failed to prepare statement: " . mysqli_error($this->conn));
                 return false;
             }
-            return true;
         } catch (Exception $e) {
             error_log("IP记录异常: " . $e->getMessage());
             return false;
