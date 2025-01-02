@@ -182,11 +182,11 @@ class IpManager {
     private function getIpLocation($ip) {
         // 直接使用本地IP库
         $location = $this->getLocationFromLocalDb($ip);
-        if ($location !== false) {
+        if ($location !== false && $location !== '未知地区') {
             return $location;
         }
 
-        // 如果本地库查询失败，使用在线API作为备份
+        // 如果本地库查询失败或返回未知地区，使用在线API
         $location = $this->fetchLocationFromApi($ip);
         return $location;
     }
@@ -239,11 +239,21 @@ class IpManager {
     // 获取设备信息
     private function getDeviceInfo($userAgent) {
         if (empty($userAgent)) {
-            return '未知设备';
+            return '直接请求';
+        }
+
+        // 检测特殊客户端
+        if (preg_match('/curl/i', $userAgent)) {
+            return 'CURL请求';
+        } elseif (preg_match('/Postman/i', $userAgent)) {
+            return 'Postman请求';
+        } elseif (preg_match('/Python/i', $userAgent)) {
+            return 'Python脚本';
+        } elseif (preg_match('/wget/i', $userAgent)) {
+            return 'Wget请求';
         }
 
         $device = '';
-        $os = '';
         $browser = '';
 
         // 检测移动设备
@@ -291,19 +301,6 @@ class IpManager {
             $browser = 'Safari浏览器';
         } elseif (preg_match('/MSIE|Trident/i', $userAgent)) {
             $browser = 'IE浏览器';
-        }
-
-        // 检测特殊客户端
-        if (preg_match('/curl/i', $userAgent)) {
-            return 'CURL请求';
-        } elseif (preg_match('/Postman/i', $userAgent)) {
-            return 'Postman请求';
-        } elseif (preg_match('/Python/i', $userAgent)) {
-            return 'Python脚本';
-        } elseif (preg_match('/wget/i', $userAgent)) {
-            return 'Wget请求';
-        } elseif (empty($userAgent)) {
-            return '直接请求';
         }
 
         // 组合设备和浏览器信息
@@ -362,6 +359,8 @@ class IpManager {
                     if (!empty($record['area'])) {
                         $location[] = $record['area'];
                     }
+                    
+                    error_log("IP: $ip, 查询结果: " . print_r($record, true));
                     
                     return implode(' ', $location) ?: '未知地区';
                 }
