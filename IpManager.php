@@ -238,6 +238,34 @@ class IpManager {
 
     // 获取设备信息
     private function getDeviceInfo($userAgent) {
+        // 获取所有自定义头部信息
+        $deviceType = $_SERVER['HTTP_X_DEVICE_TYPE'] ?? '';
+        $deviceId = $_SERVER['HTTP_X_DEVICE_ID'] ?? '';
+        $deviceModel = $_SERVER['HTTP_X_DEVICE_MODEL'] ?? '';
+        $deviceBrand = $_SERVER['HTTP_X_DEVICE_BRAND'] ?? '';
+        $deviceManufacturer = $_SERVER['HTTP_X_DEVICE_MANUFACTURER'] ?? '';
+        $androidVersion = $_SERVER['HTTP_X_ANDROID_VERSION'] ?? '';
+        
+        // 如果是安卓机顶盒
+        if ($deviceType === 'AndroidBox') {
+            $deviceInfo = array();
+            
+            if ($deviceManufacturer && $deviceModel) {
+                $deviceInfo[] = "{$deviceManufacturer} {$deviceModel}";
+            }
+            
+            if ($androidVersion) {
+                $deviceInfo[] = "Android {$androidVersion}";
+            }
+            
+            if ($deviceId) {
+                $deviceInfo[] = "(ID: " . substr($deviceId, 0, 8) . "...)";
+            }
+            
+            return implode(' ', $deviceInfo) ?: 'Android机顶盒';
+        }
+        
+        // 如果没有自定义头部信息，解析 User-Agent
         if (empty($userAgent)) {
             return '直接请求';
         }
@@ -254,61 +282,58 @@ class IpManager {
         }
 
         $device = '';
+        $version = '';
         $browser = '';
 
-        // 检测移动设备
-        if (preg_match('/(iPhone|iPad|iPod)/i', $userAgent)) {
-            $device = preg_match('/iPad/i', $userAgent) ? 'iPad' : 'iPhone';
-        } elseif (preg_match('/Android/i', $userAgent)) {
-            if (preg_match('/Mobile/i', $userAgent)) {
-                $device = 'Android手机';
+        // 详细的设备检测
+        if (preg_match('/(iPhone|iPad|iPod).*OS\s([\d_]+)/i', $userAgent, $matches)) {
+            $device = $matches[1];
+            $version = str_replace('_', '.', $matches[2]);
+            $device .= " (iOS {$version})";
+        } elseif (preg_match('/Android\s([\d\.]+);\s([^;]+);\s([^;)]+)/i', $userAgent, $matches)) {
+            $version = $matches[1];
+            $brand = $matches[2];
+            $model = $matches[3];
+            $device = "{$brand} {$model} (Android {$version})";
+        } elseif (preg_match('/Windows NT\s([\d\.]+)/i', $userAgent, $matches)) {
+            $winVersion = array(
+                '10.0' => '10',
+                '6.3' => '8.1',
+                '6.2' => '8',
+                '6.1' => '7',
+                '6.0' => 'Vista',
+                '5.2' => 'XP x64',
+                '5.1' => 'XP'
+            );
+            $device = 'Windows ' . ($winVersion[$matches[1]] ?? $matches[1]);
+        } elseif (preg_match('/Macintosh.*Mac OS X\s([\d_]+)/i', $userAgent, $matches)) {
+            $version = str_replace('_', '.', $matches[1]);
+            $device = "MacOS {$version}";
+        } elseif (preg_match('/Linux/i', $userAgent)) {
+            if (preg_match('/Ubuntu/i', $userAgent)) {
+                $device = 'Ubuntu Linux';
             } else {
-                $device = 'Android平板';
-            }
-        } elseif (preg_match('/(Windows Phone|Windows Mobile)/i', $userAgent)) {
-            $device = 'Windows手机';
-        } else {
-            // 检测桌面操作系统
-            if (preg_match('/Windows NT/i', $userAgent)) {
-                $device = 'Windows';
-                if (preg_match('/Windows NT 10.0/i', $userAgent)) $device .= ' 10';
-                elseif (preg_match('/Windows NT 6.3/i', $userAgent)) $device .= ' 8.1';
-                elseif (preg_match('/Windows NT 6.2/i', $userAgent)) $device .= ' 8';
-                elseif (preg_match('/Windows NT 6.1/i', $userAgent)) $device .= ' 7';
-            } elseif (preg_match('/Macintosh/i', $userAgent)) {
-                $device = 'MacOS';
-            } elseif (preg_match('/Linux/i', $userAgent)) {
                 $device = 'Linux';
             }
         }
 
-        // 检测浏览器
-        if (preg_match('/MicroMessenger/i', $userAgent)) {
-            $browser = '微信浏览器';
-        } elseif (preg_match('/QQ/i', $userAgent)) {
-            $browser = 'QQ浏览器';
-        } elseif (preg_match('/Alipay/i', $userAgent)) {
-            $browser = '支付宝';
-        } elseif (preg_match('/DingTalk/i', $userAgent)) {
-            $browser = '钉钉';
-        } elseif (preg_match('/Edge/i', $userAgent)) {
-            $browser = 'Edge浏览器';
-        } elseif (preg_match('/Chrome/i', $userAgent)) {
-            $browser = 'Chrome浏览器';
-        } elseif (preg_match('/Firefox/i', $userAgent)) {
-            $browser = 'Firefox浏览器';
-        } elseif (preg_match('/Safari/i', $userAgent)) {
-            $browser = 'Safari浏览器';
-        } elseif (preg_match('/MSIE|Trident/i', $userAgent)) {
-            $browser = 'IE浏览器';
+        // 检测浏览器版本
+        if (preg_match('/MicroMessenger\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "微信 {$matches[1]}";
+        } elseif (preg_match('/QQ\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "QQ {$matches[1]}";
+        } elseif (preg_match('/Edge\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "Edge {$matches[1]}";
+        } elseif (preg_match('/Chrome\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "Chrome {$matches[1]}";
+        } elseif (preg_match('/Firefox\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "Firefox {$matches[1]}";
+        } elseif (preg_match('/Safari\/([\d\.]+)/i', $userAgent, $matches)) {
+            $browser = "Safari {$matches[1]}";
         }
 
-        // 组合设备和浏览器信息
-        $info = [];
-        if ($device) $info[] = $device;
-        if ($browser) $info[] = $browser;
-
-        return $info ? implode(' / ', $info) : '未知设备';
+        $info = array_filter([$device, $browser]);
+        return implode(' / ', $info) ?: '未知设备';
     }
 
     // 从本地IP库获取位置信息
