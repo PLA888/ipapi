@@ -15,6 +15,13 @@ $conn = mysqli_connect($db_host, $db_user, $db_pwd, $db_database)
 global $conn;
 mysqli_query($GLOBALS['conn'], "SET NAMES 'UTF8'");
 
+// 设置数据库连接字符集
+mysqli_set_charset($conn, 'utf8mb4');
+
+// 设置PHP默认字符集
+ini_set('default_charset', 'UTF-8');
+mb_internal_encoding('UTF-8');
+
 // 获取用户真实IP函数
 function getuserip() {
     $real_ip = $_SERVER['REMOTE_ADDR'];

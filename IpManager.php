@@ -394,13 +394,23 @@ class IpManager {
                 if ($record['begin_ip'] <= $ip_long && $ip_long <= $record['end_ip']) {
                     $location = [];
                     if (!empty($record['country'])) {
-                        $location[] = $record['country'];
+                        $country = $this->cleanString($record['country']);
+                        if ($country) {
+                            $location[] = $country;
+                        }
                     }
                     if (!empty($record['area']) && $record['area'] !== ' CZ88.NET') {
-                        $location[] = $record['area'];
+                        $area = $this->cleanString($record['area']);
+                        if ($area) {
+                            $location[] = $area;
+                        }
                     }
                     
                     $result = implode(' ', $location);
+                    if (empty($result)) {
+                        return '未知地区';
+                    }
+                    
                     error_log("IP: $ip 位置解析结果: $result");
                     $location = implode(' ', $location);
                     error_log("原始位置信息: " . bin2hex($location));
@@ -490,26 +500,36 @@ class IpManager {
         error_log("原始字符串(hex): " . bin2hex($str));
         
         try {
-            // 使用 mb_convert_encoding 替代 iconv
-            $converted = mb_convert_encoding($str, 'UTF-8', 'GBK');
+            // 1. 首先尝试直接转换
+            $converted = @iconv('GBK', 'UTF-8//IGNORE', $str);
             if ($converted !== false) {
                 $result = trim($converted);
-                error_log("转换后字符串: " . $result);
-                return $result;
+                if (!empty($result) && mb_check_encoding($result, 'UTF-8')) {
+                    return $result;
+                }
             }
             
-            // 如果转换失败，尝试直接使用 GBK 解码
-            $converted = iconv('GBK', 'UTF-8//TRANSLIT', $str);
-            if ($converted !== false) {
-                $result = trim($converted);
-                error_log("iconv转换后字符串: " . $result);
-                return $result;
+            // 2. 如果直接转换失败，尝试检测编码并转换
+            $encoding = mb_detect_encoding($str, ['GBK', 'GB2312', 'UTF-8', 'BIG5']);
+            if ($encoding) {
+                $converted = @mb_convert_encoding($str, 'UTF-8', $encoding);
+                if (!empty($converted)) {
+                    return trim($converted);
+                }
             }
+            
+            // 3. 最后尝试使用 TRANSLIT 选项
+            $converted = @iconv('GBK', 'UTF-8//TRANSLIT', $str);
+            if ($converted !== false) {
+                return trim($converted);
+            }
+            
+            // 4. 如果所有转换都失败，返回十六进制表示
+            return '未知地区(' . bin2hex($str) . ')';
         } catch (Exception $e) {
-            error_log("编码转换错误: " . $e->getMessage());
+            error_log("字符编码转换错误: " . $e->getMessage());
+            return '未知地区';
         }
-        
-        return '未知地区';
     }
 
     // 析构函数中关闭文件句柄
@@ -592,5 +612,22 @@ class IpManager {
 
         // 简单验证文件格式
         return $first > 0 && $last > $first;
+    }
+
+    // 添加新的辅助方法来清理和验证字符串
+    private function cleanString($str) {
+        if (empty($str)) {
+            return '';
+        }
+        
+        // 移除不可见字符
+        $str = preg_replace('/[\x00-\x1F\x7F]/', '', $str);
+        
+        // 验证是否为有效的UTF-8字符串
+        if (!mb_check_encoding($str, 'UTF-8')) {
+            return '';
+        }
+        
+        return trim($str);
     }
 } 
