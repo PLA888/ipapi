@@ -4,7 +4,7 @@ FROM php:8.0-apache
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
-    default-mysql-server \
+    mariadb-server \
     && docker-php-ext-install zip mysqli pdo_mysql
 
 # 启用 Apache 模块
@@ -18,10 +18,10 @@ COPY . /var/www/html/
 
 # 创建启动脚本
 RUN echo '#!/bin/bash\n\
-# 启动 MySQL\n\
-service mysql start\n\
+# 启动 MariaDB\n\
+service mariadb start\n\
 \n\
-# 等待 MySQL 启动\n\
+# 等待 MariaDB 启动\n\
 while ! mysqladmin ping --silent; do\n\
     sleep 1\n\
 done\n\
