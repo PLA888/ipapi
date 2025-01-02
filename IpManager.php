@@ -247,13 +247,23 @@ class IpManager {
         // 如果是安卓机顶盒
         if ($deviceType === 'AndroidBox') {
             $deviceInfo = [];
-            if ($deviceManufacturer && $deviceModel) {
-                $deviceInfo[] = "{$deviceManufacturer} {$deviceModel}";
+            if ($deviceManufacturer) {
+                $deviceInfo[] = $deviceManufacturer;
+            }
+            if ($deviceModel) {
+                $deviceInfo[] = $deviceModel;
             }
             if ($androidVersion) {
-                $deviceInfo[] = "Android {$androidVersion}";
+                $deviceInfo[] = "Android $androidVersion";
             }
-            return implode(' / ', $deviceInfo) ?: 'Android机顶盒';
+            
+            // 如果有任何设备信息，则返回组合信息
+            if (!empty($deviceInfo)) {
+                return implode(' ', $deviceInfo);
+            }
+            
+            // 如果没有任何具体信息，则返回通用描述
+            return '机顶盒';
         }
         
         // 如果没有自定义头部信息，解析 User-Agent
