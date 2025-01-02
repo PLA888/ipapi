@@ -74,7 +74,7 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IP访问管理系统</title>
+    <title>IP验证管理系统</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
@@ -316,7 +316,7 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
             <div class="d-flex align-items-center">
                 <h2>
                     <a href="ip_manage.php" class="text-decoration-none">
-                        <i class="fas fa-shield-alt me-2"></i>IP访问管理系统
+                        <i class="fas fa-shield-alt me-2"></i>IP验证管理系统
                     </a>
                 </h2>
                 <button onclick="window.location.reload()" class="btn btn-primary ms-3" title="刷新页面">
@@ -538,7 +538,7 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
             <hr>
             <p>
                 <small>
-                    © <?php echo date('Y'); ?> IP访问管理系统 | 
+                    © <?php echo date('Y'); ?> IP验证管理系统 | 
                     <a href="https://github.com/vbskycn/ipapi" target="_blank" class="text-decoration-none">
                         <i class="fab fa-github"></i> GitHub
                     </a>
