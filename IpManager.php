@@ -86,12 +86,11 @@ class IpManager {
     }
 
     public function getIpList($limit, $offset, $search, $sort_field, $sort_order, $search_field) {
-        $sql = "SELECT * FROM ip_records WHERE 1=1";
+        $sql = "SELECT * FROM ip_access WHERE 1=1";
         $params = [];
 
         if (!empty($search)) {
             if ($search_field === 'date') {
-                // 日期搜索
                 $sql .= " AND (DATE(first_access) = ? OR DATE(last_access) = ?)";
                 $params[] = $search;
                 $params[] = $search;
@@ -105,26 +104,32 @@ class IpManager {
                 $params[] = "%$search%";
             }
         }
-        
+
         // 验证并清理排序字段
         $allowed_sort_fields = ['ip', 'first_access', 'last_access', 'access_count'];
         $sort_field = in_array($sort_field, $allowed_sort_fields) ? $sort_field : 'last_access';
         $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
-        
-        $sql .= " ORDER BY $sort_field $sort_order LIMIT $limit OFFSET $offset";
-        
-        $result = mysqli_query($this->conn, $sql);
-        if (!$result) {
-            error_log("查询失败: " . mysqli_error($this->conn));
-            return [];
+
+        $sql .= " ORDER BY $sort_field $sort_order LIMIT ? OFFSET ?";
+        $params[] = (int)$limit;
+        $params[] = (int)$offset;
+
+        $stmt = mysqli_prepare($this->conn, $sql);
+        if ($stmt) {
+            if (!empty($params)) {
+                $types = str_repeat('s', count($params));
+                mysqli_stmt_bind_param($stmt, $types, ...$params);
+            }
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            $data = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $data[] = $row;
+            }
+            mysqli_stmt_close($stmt);
+            return $data;
         }
-        
-        $data = [];
-        while ($row = mysqli_fetch_assoc($result)) {
-            $data[] = $row;
-        }
-        
-        return $data;
+        return [];
     }
 
     public function deleteIp($ip) {
@@ -143,12 +148,11 @@ class IpManager {
     }
 
     public function getTotalIps($search, $search_field) {
-        $sql = "SELECT COUNT(*) FROM ip_records WHERE 1=1";
+        $sql = "SELECT COUNT(*) as total FROM ip_access WHERE 1=1";
         $params = [];
 
         if (!empty($search)) {
             if ($search_field === 'date') {
-                // 日期搜索
                 $sql .= " AND (DATE(first_access) = ? OR DATE(last_access) = ?)";
                 $params[] = $search;
                 $params[] = $search;
@@ -163,14 +167,19 @@ class IpManager {
             }
         }
 
-        $result = mysqli_query($this->conn, $sql);
-        if (!$result) {
-            error_log("获取总数失败: " . mysqli_error($this->conn));
-            return 0;
+        $stmt = mysqli_prepare($this->conn, $sql);
+        if ($stmt) {
+            if (!empty($params)) {
+                $types = str_repeat('s', count($params));
+                mysqli_stmt_bind_param($stmt, $types, ...$params);
+            }
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            $row = mysqli_fetch_assoc($result);
+            mysqli_stmt_close($stmt);
+            return (int)$row['total'];
         }
-        
-        $row = mysqli_fetch_assoc($result);
-        return (int)$row['total'];
+        return 0;
     }
 
     // 获取指定日期的IP数量
