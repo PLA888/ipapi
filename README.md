@@ -12,6 +12,37 @@
 - 访问统计和分析
 - 分页和搜索功能
 - 数据自动清理
+- Docker 部署支持（支持 x86_64/ARM64/ARMv7）
+
+## 部署方式
+
+### 方式一：Docker 部署（推荐）
+
+```bash
+# 拉取镜像
+docker pull zhoujie218/ipapi:latest
+
+# 运行容器
+docker run -d \
+  -p 80:80 \
+  -v mysql_data:/var/lib/mysql \
+  zhoujie218/ipapi:latest
+```
+
+支持的标签：
+- `latest`: 最新版本
+- `YYYYMMDD-HHMM`: 指定版本（北京时间）
+
+支持的架构：
+- linux/amd64 (x86_64)
+- linux/arm64 (ARM 64位)
+- linux/arm/v7 (ARM 32位)
+
+数据持久化：
+- MySQL 数据存储在 `/var/lib/mysql`
+- 建议使用 volume 挂载保存数据
+
+### 方式二：传统部署
 
 ## 系统要求
 
@@ -57,6 +88,48 @@
    chmod 755 *.php
    chmod 644 *.dat
    ```
+
+## Docker 镜像构建
+
+如果您想自己构建 Docker 镜像：
+
+```bash
+# 克隆仓库
+git clone https://github.com/vbskycn/ipapi.git
+cd ipapi
+
+# 构建镜像
+docker build -t ipapi .
+
+# 运行容器
+docker run -d -p 80:80 -v mysql_data:/var/lib/mysql ipapi
+```
+
+## Docker Compose 部署
+
+创建 docker-compose.yml：
+
+```yaml
+version: '3'
+
+services:
+  ipapi:
+    image: zhoujie218/ipapi:latest
+    ports:
+      - "80:80"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+```
+
+运行：
+
+```bash
+docker-compose up -d
+```
 
 ## 默认账号
 
@@ -189,6 +262,12 @@ php集成
   ## GeoLite.mmdb
 
 ## 更新日志
+
+### v1.1.0 (2025-01-02)
+
+- 添加 Docker 支持
+- 支持多架构部署（x86_64/ARM64/ARMv7）
+- 优化数据库初始化流程
 
 ### v1.0.0 (2025-01-01)
 
