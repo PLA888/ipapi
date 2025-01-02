@@ -373,15 +373,12 @@ class IpManager {
                 $this->first_record = unpack('V', substr($buf, 0, 4))[1];
                 $this->last_record = unpack('V', substr($buf, 4, 4))[1];
                 $this->total_records = ($this->last_record - $this->first_record) / 7 + 1;
-                
-                error_log("IP库加载成功: 总记录数 " . $this->total_records);
             }
 
             $ip_long = $this->ip2long($ip);
             $left = 0;
             $right = $this->total_records - 1;
 
-            // 二分查找
             while ($left <= $right) {
                 $mid = floor(($left + $right) / 2);
                 $record = $this->get_record($mid);
@@ -394,28 +391,13 @@ class IpManager {
                 if ($record['begin_ip'] <= $ip_long && $ip_long <= $record['end_ip']) {
                     $location = [];
                     if (!empty($record['country'])) {
-                        $country = $this->cleanString($record['country']);
-                        if ($country) {
-                            $location[] = $country;
-                        }
+                        $location[] = $record['country'];
                     }
-                    if (!empty($record['area']) && $record['area'] !== ' CZ88.NET') {
-                        $area = $this->cleanString($record['area']);
-                        if ($area) {
-                            $location[] = $area;
-                        }
+                    if (!empty($record['area'])) {
+                        $location[] = $record['area'];
                     }
                     
-                    $result = implode(' ', $location);
-                    if (empty($result)) {
-                        return '未知地区';
-                    }
-                    
-                    error_log("IP: $ip 位置解析结果: $result");
-                    $location = implode(' ', $location);
-                    error_log("原始位置信息: " . bin2hex($location));
-                    error_log("转换后位置信息: " . $location);
-                    return $location ?: '未知地区';
+                    return implode(' ', $location) ?: '未知地区';
                 }
                 
                 if ($record['begin_ip'] > $ip_long) {
@@ -425,8 +407,7 @@ class IpManager {
                 }
             }
             
-            error_log("未找到IP: $ip 的位置信息");
-            return false;
+            return '未知地区';
         } catch (Exception $e) {
             error_log("本地IP库查询错误: " . $e->getMessage());
             return false;
@@ -450,94 +431,119 @@ class IpManager {
 
     // 获取记录
     private function get_record($index) {
-        fseek($this->fd, $this->first_record + $index * 7);
-        $buf = fread($this->fd, 7);
-        $begin_ip = unpack('V', substr($buf, 0, 4))[1];
-        $offset = unpack('V', substr($buf, 4, 3).chr(0))[1];
+        // 保存当前位置
+        $current_position = ftell($this->fd);
         
-        fseek($this->fd, $offset);
+        // 定位到索引位置
+        $offset = $this->first_record + $index * 7;
+        if (fseek($this->fd, $offset, SEEK_SET) === -1) {
+            error_log("定位索引失败: offset=" . $offset);
+            return false;
+        }
+        
+        // 读取起始IP和偏移量
+        $buf = fread($this->fd, 7);
+        if (strlen($buf) < 7) {
+            error_log("读取记录失败: 数据长度不足");
+            return false;
+        }
+        
+        $begin_ip = unpack('V', substr($buf, 0, 4))[1];
+        $offset = unpack('V', substr($buf, 4, 3) . chr(0))[1];
+        
+        // 定位到偏移位置
+        if (fseek($this->fd, $offset, SEEK_SET) === -1) {
+            error_log("定位偏移失败: offset=" . $offset);
+            return false;
+        }
+        
+        // 读取结束IP
         $buf = fread($this->fd, 4);
+        if (strlen($buf) < 4) {
+            error_log("读取结束IP失败");
+            return false;
+        }
         $end_ip = unpack('V', $buf)[1];
         
         // 读取地区信息
-        $country = $this->read_string();
-        $area = $this->read_string();
+        $mode = ord(fread($this->fd, 1));
+        if ($mode === 1 || $mode === 2) { // 重定向模式
+            $offset = unpack('V', fread($this->fd, 3) . chr(0))[1];
+            // 保存当前位置
+            $save_offset = ftell($this->fd);
+            
+            // 跳转到重定向位置
+            fseek($this->fd, $offset, SEEK_SET);
+            if ($mode === 2) {
+                // 如果是双重定向，再读取一次
+                $mode = ord(fread($this->fd, 1));
+                if ($mode === 2) {
+                    $offset = unpack('V', fread($this->fd, 3) . chr(0))[1];
+                    fseek($this->fd, $offset, SEEK_SET);
+                }
+            }
+        }
+        
+        // 读取地区信息
+        $country = '';
+        $area = '';
+        
+        while (($byte = ord(fread($this->fd, 1))) !== 0) {
+            $country .= chr($byte);
+        }
+        
+        // 读取区域信息
+        $byte = ord(fread($this->fd, 1));
+        if ($byte === 1 || $byte === 2) {
+            fseek($this->fd, unpack('V', fread($this->fd, 3) . chr(0))[1]);
+            while (($byte = ord(fread($this->fd, 1))) !== 0) {
+                $area .= chr($byte);
+            }
+        } else {
+            $area .= chr($byte);
+            while (($byte = ord(fread($this->fd, 1))) !== 0) {
+                $area .= chr($byte);
+            }
+        }
+        
+        // 转换编码
+        $country = $this->convertEncoding($country);
+        $area = $this->convertEncoding($area);
+        
+        // 恢复文件指针位置
+        fseek($this->fd, $current_position, SEEK_SET);
         
         return [
             'begin_ip' => $begin_ip,
             'end_ip' => $end_ip,
             'country' => $country,
-            'area' => $area
+            'area' => $area !== ' CZ88.NET' ? $area : ''
         ];
     }
 
-    // 读取字符串
-    private function read_string() {
-        $str = '';
-        $chr = fread($this->fd, 1);
-        $byte = ord($chr);
-        
-        // 检查是否为重定向
-        if ($byte == 0x01 || $byte == 0x02) {
-            $p = fread($this->fd, 3);
-            if ($byte == 0x01) {
-                fseek($this->fd, unpack('V', $p.chr(0))[1]);
-            } else {
-                fseek($this->fd, unpack('V', $p.chr(0))[1]);
-            }
-            $chr = fread($this->fd, 1);
-            $byte = ord($chr);
+    // 新增编码转换方法
+    private function convertEncoding($str) {
+        if (empty($str)) {
+            return '';
         }
         
-        // 读取字符串直到遇到0x00
-        while ($byte != 0x00) {
-            $str .= $chr;
-            $chr = fread($this->fd, 1);
-            $byte = ord($chr);
+        // 尝试直接转换
+        $result = @iconv('GBK', 'UTF-8//IGNORE', $str);
+        if ($result !== false && !empty($result)) {
+            return $result;
         }
         
-        // 记录原始数据用于调试
-        error_log("原始字符串(hex): " . bin2hex($str));
-        
-        try {
-            // 使用 CP936 编码（GBK的别名）进行转换
-            $result = iconv('CP936', 'UTF-8//IGNORE', $str);
-            if ($result !== false) {
-                $result = trim($result);
-                if (!empty($result)) {
-                    error_log("成功转换: " . $result);
-                    return $result;
-                }
+        // 如果转换失败，尝试检测编码
+        $encoding = mb_detect_encoding($str, ['GBK', 'GB2312', 'UTF-8']);
+        if ($encoding) {
+            $result = mb_convert_encoding($str, 'UTF-8', $encoding);
+            if (!empty($result)) {
+                return $result;
             }
-            
-            // 如果第一次转换失败，尝试使用 GB18030
-            $result = iconv('GB18030', 'UTF-8//IGNORE', $str);
-            if ($result !== false) {
-                $result = trim($result);
-                if (!empty($result)) {
-                    error_log("GB18030转换成功: " . $result);
-                    return $result;
-                }
-            }
-            
-            // 如果仍然失败，尝试使用 mb_convert_encoding
-            $encodings = array('GBK', 'GB2312', 'BIG5', 'UTF-8');
-            foreach ($encodings as $encoding) {
-                $result = @mb_convert_encoding($str, 'UTF-8', $encoding);
-                if ($result !== false && !empty(trim($result))) {
-                    error_log("使用 {$encoding} 转换成功: " . $result);
-                    return trim($result);
-                }
-            }
-            
-            // 如果所有转换都失败，返回未知地区
-            error_log("所有转换方法都失败");
-            return '未知地区';
-            
-        } catch (Exception $e) {
-            error_log("字符编码转换错误: " . $e->getMessage());
-            return '未知地区';
         }
+        
+        // 如果还是失败，返回原始的十六进制
+        return '未知(' . bin2hex($str) . ')';
     }
 
     // 析构函数中关闭文件句柄
