@@ -3,7 +3,7 @@
 class IpManager {
     private $conn;
     private $allow_hours = 6; // 默认6小时内允许访问
-    private $ip_db_file = 'qqwry.dat';
+    private $ip_db_file = 'ipdata/qqwry.dat';
     private $fd;
     private $total_records;
     private $first_record;
@@ -521,7 +521,7 @@ class IpManager {
 
     public function updateIpDatabase() {
         $url = 'https://raw.gitmirror.com/adysec/IP_database/main/qqwry/qqwry.dat';
-        $newFile = 'qqwry.dat.new';
+        $newFile = 'ipdata/qqwry.dat.new';
         $currentFile = $this->ip_db_file;
 
         try {
