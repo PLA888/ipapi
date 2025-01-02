@@ -121,15 +121,10 @@ class IpManager {
     public function cleanOldRecords($hours = 72) {
         $hours = (int)$hours;
         
-        // 清理IP访问记录
+        // 只清理IP访问记录
         $sql = "DELETE FROM ip_access 
                 WHERE last_access < DATE_SUB(NOW(), INTERVAL $hours HOUR)";
-        $result1 = mysqli_query($this->conn, $sql);
-        
-        // 清理超过30天的位置缓存
-        $result2 = $this->cleanLocationCache(30);
-        
-        return $result1 && $result2;
+        return mysqli_query($this->conn, $sql);
     }
 
     public function getTotalIps($search = '') {
@@ -169,40 +164,17 @@ class IpManager {
         ];
     }
 
-    // 获取IP地理位置（带缓存）
+    // 获取IP地理位置
     private function getIpLocation($ip) {
-        // 先检查缓存
-        $cached = $this->getLocationFromCache($ip);
-        if ($cached !== false) {
-            return $cached;
-        }
-
-        // 尝试使用本地IP库
+        // 直接使用本地IP库
         $location = $this->getLocationFromLocalDb($ip);
         if ($location !== false) {
-            $this->saveLocationToCache($ip, $location);
             return $location;
         }
 
-        // 本地库查询失败，使用在线API
+        // 如果本地库查询失败，使用在线API作为备份
         $location = $this->fetchLocationFromApi($ip);
-        $this->saveLocationToCache($ip, $location);
         return $location;
-    }
-
-    // 从缓存中获取位置信息
-    private function getLocationFromCache($ip) {
-        $ip = mysqli_real_escape_string($this->conn, $ip);
-        $sql = "SELECT location FROM ip_location_cache 
-                WHERE ip = '$ip' 
-                AND update_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-                LIMIT 1";
-        
-        $result = mysqli_query($this->conn, $sql);
-        if ($result && $row = mysqli_fetch_assoc($result)) {
-            return $row['location'];
-        }
-        return false;
     }
 
     // 从API获取位置信息
@@ -248,26 +220,6 @@ class IpManager {
         }
 
         return '未知位置';
-    }
-
-    // 保存位置信息到缓存
-    private function saveLocationToCache($ip, $location) {
-        $ip = mysqli_real_escape_string($this->conn, $ip);
-        $location = mysqli_real_escape_string($this->conn, $location);
-        $sql = "INSERT INTO ip_location_cache (ip, location, update_time) 
-                VALUES ('$ip', '$location', NOW())
-                ON DUPLICATE KEY UPDATE 
-                    location = VALUES(location),
-                    update_time = NOW()";
-        
-        mysqli_query($this->conn, $sql);
-    }
-
-    // 清理旧的缓存记录
-    public function cleanLocationCache($days = 30) {
-        $sql = "DELETE FROM ip_location_cache 
-                WHERE update_time < DATE_SUB(NOW(), INTERVAL $days DAY)";
-        return mysqli_query($this->conn, $sql);
     }
 
     // 获取设备信息
