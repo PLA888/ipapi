@@ -532,6 +532,19 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
             </div>
         </nav>
         <?php endif; ?>
+
+        <!-- 版权信息 -->
+        <footer class="mt-5 text-center text-muted">
+            <hr>
+            <p>
+                <small>
+                    © <?php echo date('Y'); ?> IP访问管理系统 | 
+                    <a href="https://github.com/vbskycn/ipapi" target="_blank" class="text-decoration-none">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                </small>
+            </p>
+        </footer>
     </div>
 
     <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
