@@ -8,8 +8,10 @@ $db_pwd = "FNsJJWhwijx5azke";
 $db_database = "ipapi";
 
 // 创建数据库连接
-$conn = mysqli_connect($db_host, $db_user, $db_pwd, $db_database) 
-    OR die('无法登录MYSQL服务器！');
+$conn = mysqli_connect($db_host, $db_user, $db_pwd, $db_database);
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
 
 // 设置全局连接变量
 global $conn;
