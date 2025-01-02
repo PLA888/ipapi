@@ -38,14 +38,15 @@ if (isset($_POST['page_size'])) {
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
 $search = isset($_GET['search']) ? $_GET['search'] : '';
+$search_field = isset($_GET['search_field']) ? $_GET['search_field'] : 'all';
 
 // 获取排序参数
 $sort_field = isset($_GET['sort']) ? $_GET['sort'] : 'last_access';
 $sort_order = isset($_GET['order']) ? $_GET['order'] : 'desc';
 
 // 获取IP列表
-$ipList = $ipManager->getIpList($limit, $offset, $search, $sort_field, $sort_order);
-$totalIps = $ipManager->getTotalIps($search); // 修改为包含搜索条件的总数
+$ipList = $ipManager->getIpList($limit, $offset, $search, $sort_field, $sort_order, $search_field);
+$totalIps = $ipManager->getTotalIps($search, $search_field);
 $totalPages = ceil($totalIps / $limit);
 
 // 确保页码在有效范围内
@@ -376,12 +377,18 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
 
         <!-- 搜索和清理表单 -->
         <div class="row g-3 align-items-center">
-            <div class="col-auto" style="width: 300px;">
+            <div class="col-auto" style="width: 400px;">
                 <form method="GET" class="search-box">
                     <div class="input-group">
+                        <select name="search_field" class="form-select" style="max-width: 120px;">
+                            <option value="all" <?php echo $search_field == 'all' ? 'selected' : ''; ?>>全部</option>
+                            <option value="ip" <?php echo $search_field == 'ip' ? 'selected' : ''; ?>>IP地址</option>
+                            <option value="location" <?php echo $search_field == 'location' ? 'selected' : ''; ?>>地理位置</option>
+                            <option value="device_info" <?php echo $search_field == 'device_info' ? 'selected' : ''; ?>>设备信息</option>
+                        </select>
                         <input type="text" class="form-control" name="search" 
                                value="<?php echo htmlspecialchars($search); ?>" 
-                               placeholder="搜索IP地址...">
+                               placeholder="输入搜索关键词...">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-search"></i>
                         </button>
