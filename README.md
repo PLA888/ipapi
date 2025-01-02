@@ -22,14 +22,30 @@
 # 拉取镜像
 docker pull zhoujie218/ipapi:latest
 
-# 运行容器
+#删除容器
+docker stop ipapi
+docker rm ipapi
+
+# 运行容器(数据持久化,要先安装后把数据库copy到你的映射目录)
 docker run -d \
-  -p 80:80 \
-  -v mysql_data:/var/lib/mysql \
+  --name ipapi \
+  --restart always \
+  -p 8081:80 \
+  -v /root/docker/ipapi:/var/lib/mysql \
+  zhoujie218/ipapi:latest
+
+# 运行容器 
+docker run -d \
+  --name ipapi \
+  --restart always \
+  -p 8081:80 \
   zhoujie218/ipapi:latest
 ```
 
+
+
 支持的标签：
+
 - `latest`: 最新版本
 - `YYYYMMDD-HHMM`: 指定版本（北京时间）
 

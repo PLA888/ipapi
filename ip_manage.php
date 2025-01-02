@@ -321,6 +321,10 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
                     <a href="https://github.com/vbskycn/ipapi" target="_blank" class="text-decoration-none">
                         <i class="fab fa-github"></i> GitHub
                     </a>
+                    | 
+                    <a href="https://hub.docker.com/repository/docker/zhoujie218/ipapi/" target="_blank" class="text-decoration-none">
+                        <i class="fab fa-docker"></i> Docker Hub
+                    </a>
                 </small>
             </p>
         </footer>
