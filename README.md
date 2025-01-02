@@ -28,25 +28,35 @@
 
 1. ### 创建数据库
 
+   ```
    CREATE DATABASE ipapi CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+   ```
 
 2. ### 导入数据表
 
+   ```
    mysql -u your_username -p ipapi < create_table.sql
+   ```
+
+   可以直接导入 sql/create_table.sql
 
 3. ### 修改配置文件
 
    编辑 config.php，设置数据库连接信息：
 
+   ```
    $db_host = "localhost:3306";
    $db_user = "your_username";
    $db_pwd = "your_password";
    $db_database = "ipapi";
+   ```
 
 4. ### 设置文件权限
 
+   ```
    chmod 755 *.php
    chmod 644 *.dat
+   ```
 
 ## 默认账号
 
