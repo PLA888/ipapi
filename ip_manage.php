@@ -47,7 +47,7 @@ $sort_order = isset($_GET['order']) ? $_GET['order'] : 'desc';
 // 获取IP列表
 $ipList = $ipManager->getIpList($limit, $offset, $search, $sort_field, $sort_order, $search_field);
 $totalIps = $ipManager->getTotalIps($search, $search_field);
-$totalPages = ceil($totalIps / $limit);
+$totalPages = max(1, ceil($totalIps / $limit));
 
 // 确保页码在有效范围内
 if ($page > $totalPages) {
@@ -123,26 +123,32 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
             </div>
             <div class="col-md-3">
                 <div class="stats-card" style="border-left: 4px solid var(--success-color);">
-                    <h4><i class="fas fa-calendar-day me-2"></i>今日IP数</h4>
-                    <div class="number" style="color: var(--success-color);">
-                        <?php echo $recentStats['today']; ?>
-                    </div>
+                    <a href="?search=<?php echo date('Y-m-d'); ?>&search_field=date" class="text-decoration-none">
+                        <h4><i class="fas fa-calendar-day me-2"></i>今日IP数</h4>
+                        <div class="number" style="color: var(--success-color);">
+                            <?php echo $recentStats['today']; ?>
+                        </div>
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card" style="border-left: 4px solid var(--warning-color);">
-                    <h4><i class="fas fa-calendar-minus me-2"></i>昨日IP数</h4>
-                    <div class="number" style="color: var(--warning-color);">
-                        <?php echo $recentStats['yesterday']; ?>
-                    </div>
+                    <a href="?search=<?php echo date('Y-m-d', strtotime('-1 day')); ?>&search_field=date" class="text-decoration-none">
+                        <h4><i class="fas fa-calendar-minus me-2"></i>昨日IP数</h4>
+                        <div class="number" style="color: var(--warning-color);">
+                            <?php echo $recentStats['yesterday']; ?>
+                        </div>
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card" style="border-left: 4px solid var(--secondary-color);">
-                    <h4><i class="fas fa-calendar-week me-2"></i>前日IP数</h4>
-                    <div class="number" style="color: var(--secondary-color);">
-                        <?php echo $recentStats['dayBeforeYesterday']; ?>
-                    </div>
+                    <a href="?search=<?php echo date('Y-m-d', strtotime('-2 day')); ?>&search_field=date" class="text-decoration-none">
+                        <h4><i class="fas fa-calendar-week me-2"></i>前日IP数</h4>
+                        <div class="number" style="color: var(--secondary-color);">
+                            <?php echo $recentStats['dayBeforeYesterday']; ?>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>
@@ -157,6 +163,7 @@ function getSortUrl($field, $currentSort, $currentOrder, $search) {
                             <option value="ip" <?php echo $search_field == 'ip' ? 'selected' : ''; ?>>IP地址</option>
                             <option value="location" <?php echo $search_field == 'location' ? 'selected' : ''; ?>>地理位置</option>
                             <option value="device_info" <?php echo $search_field == 'device_info' ? 'selected' : ''; ?>>设备信息</option>
+                            <option value="date" <?php echo $search_field == 'date' ? 'selected' : ''; ?>>访问日期</option>
                         </select>
                         <input type="text" class="form-control" name="search" 
                                value="<?php echo htmlspecialchars($search); ?>" 

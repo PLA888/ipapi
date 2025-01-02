@@ -221,3 +221,17 @@ input[type="number"] {
         font-size: 1.5rem;
     }
 } 
+
+.stats-card a {
+    display: block;
+    color: inherit;
+}
+
+.stats-card a:hover {
+    opacity: 0.8;
+}
+
+.stats-card a:hover .number {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+} 

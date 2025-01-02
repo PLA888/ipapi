@@ -85,44 +85,46 @@ class IpManager {
         return mysqli_num_rows($result) > 0;
     }
 
-    public function getIpList($limit, $offset, $search = '', $sort_field = 'last_access', $sort_order = 'desc', $search_field = 'all') {
-        try {
-            $sql = "SELECT * FROM ip_access WHERE 1=1";
-            $params = [];
-            
-            if ($search) {
-                $search = mysqli_real_escape_string($this->conn, $search);
-                if ($search_field == 'all') {
-                    $sql .= " AND (ip LIKE '%$search%' OR location LIKE '%$search%' OR device_info LIKE '%$search%')";
-                } else {
-                    $search_field = mysqli_real_escape_string($this->conn, $search_field);
-                    $sql .= " AND $search_field LIKE '%$search%'";
-                }
+    public function getIpList($limit, $offset, $search, $sort_field, $sort_order, $search_field) {
+        $sql = "SELECT * FROM ip_records WHERE 1=1";
+        $params = [];
+
+        if (!empty($search)) {
+            if ($search_field === 'date') {
+                // 日期搜索
+                $sql .= " AND (DATE(first_access) = ? OR DATE(last_access) = ?)";
+                $params[] = $search;
+                $params[] = $search;
+            } elseif ($search_field === 'all') {
+                $sql .= " AND (ip LIKE ? OR location LIKE ? OR device_info LIKE ? OR DATE(first_access) = ? OR DATE(last_access) = ?)";
+                $params = array_fill(0, 3, "%$search%");
+                $params[] = $search;
+                $params[] = $search;
+            } else {
+                $sql .= " AND $search_field LIKE ?";
+                $params[] = "%$search%";
             }
-            
-            // 验证并清理排序字段
-            $allowed_sort_fields = ['ip', 'first_access', 'last_access', 'access_count'];
-            $sort_field = in_array($sort_field, $allowed_sort_fields) ? $sort_field : 'last_access';
-            $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
-            
-            $sql .= " ORDER BY $sort_field $sort_order LIMIT $limit OFFSET $offset";
-            
-            $result = mysqli_query($this->conn, $sql);
-            if (!$result) {
-                error_log("查询失败: " . mysqli_error($this->conn));
-                return [];
-            }
-            
-            $data = [];
-            while ($row = mysqli_fetch_assoc($result)) {
-                $data[] = $row;
-            }
-            
-            return $data;
-        } catch (Exception $e) {
-            error_log("getIpList 错误: " . $e->getMessage());
+        }
+        
+        // 验证并清理排序字段
+        $allowed_sort_fields = ['ip', 'first_access', 'last_access', 'access_count'];
+        $sort_field = in_array($sort_field, $allowed_sort_fields) ? $sort_field : 'last_access';
+        $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
+        
+        $sql .= " ORDER BY $sort_field $sort_order LIMIT $limit OFFSET $offset";
+        
+        $result = mysqli_query($this->conn, $sql);
+        if (!$result) {
+            error_log("查询失败: " . mysqli_error($this->conn));
             return [];
         }
+        
+        $data = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $data[] = $row;
+        }
+        
+        return $data;
     }
 
     public function deleteIp($ip) {
@@ -140,32 +142,35 @@ class IpManager {
         return mysqli_query($this->conn, $sql);
     }
 
-    public function getTotalIps($search = '', $search_field = 'all') {
-        try {
-            $sql = "SELECT COUNT(*) as total FROM ip_access WHERE 1=1";
-            
-            if ($search) {
-                $search = mysqli_real_escape_string($this->conn, $search);
-                if ($search_field == 'all') {
-                    $sql .= " AND (ip LIKE '%$search%' OR location LIKE '%$search%' OR device_info LIKE '%$search%')";
-                } else {
-                    $search_field = mysqli_real_escape_string($this->conn, $search_field);
-                    $sql .= " AND $search_field LIKE '%$search%'";
-                }
+    public function getTotalIps($search, $search_field) {
+        $sql = "SELECT COUNT(*) FROM ip_records WHERE 1=1";
+        $params = [];
+
+        if (!empty($search)) {
+            if ($search_field === 'date') {
+                // 日期搜索
+                $sql .= " AND (DATE(first_access) = ? OR DATE(last_access) = ?)";
+                $params[] = $search;
+                $params[] = $search;
+            } elseif ($search_field === 'all') {
+                $sql .= " AND (ip LIKE ? OR location LIKE ? OR device_info LIKE ? OR DATE(first_access) = ? OR DATE(last_access) = ?)";
+                $params = array_fill(0, 3, "%$search%");
+                $params[] = $search;
+                $params[] = $search;
+            } else {
+                $sql .= " AND $search_field LIKE ?";
+                $params[] = "%$search%";
             }
-            
-            $result = mysqli_query($this->conn, $sql);
-            if (!$result) {
-                error_log("获取总数失败: " . mysqli_error($this->conn));
-                return 0;
-            }
-            
-            $row = mysqli_fetch_assoc($result);
-            return (int)$row['total'];
-        } catch (Exception $e) {
-            error_log("getTotalIps 错误: " . $e->getMessage());
+        }
+
+        $result = mysqli_query($this->conn, $sql);
+        if (!$result) {
+            error_log("获取总数失败: " . mysqli_error($this->conn));
             return 0;
         }
+        
+        $row = mysqli_fetch_assoc($result);
+        return (int)$row['total'];
     }
 
     // 获取指定日期的IP数量
